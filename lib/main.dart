@@ -27,13 +27,12 @@ class AmapAutoHomePage extends StatefulWidget {
 }
 
 class _AmapAutoHomePageState extends State<AmapAutoHomePage> {
-  int _counter = 0;
+  // 高德导航数据示例
+  String _navStatus = '等待高德导航数据...';
+  String _navInfo = '';
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
+  // TODO: 这里可以集成您的高德导航数据接收逻辑
+  // 并在接收到数据时调用 setState 更新 _navStatus 和 _navInfo
 
   @override
   Widget build(BuildContext context) {
@@ -53,23 +52,26 @@ class _AmapAutoHomePageState extends State<AmapAutoHomePage> {
             const SizedBox(height: 20),
             const Icon(Icons.location_on, size: 64, color: Colors.green),
             const SizedBox(height: 20),
-            const Text(
-              '等待高德导航数据...',
-              style: TextStyle(fontSize: 16),
+            Text(
+              _navStatus,
+              style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 20),
-            Text(
-              '测试计数器: $_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+            if (_navInfo.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _navInfo,
+                  style: const TextStyle(fontSize: 16, color: Colors.black87),
+                ),
+              ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: '测试',
-        backgroundColor: Colors.green,
-        child: const Icon(Icons.add),
       ),
     );
   }
