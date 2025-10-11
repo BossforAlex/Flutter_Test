@@ -1,9 +1,14 @@
-buildscript {
-    ext.kotlin_version = '1.8.22'
-}
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 /**
- * Early-phase namespace injection for AGP 8+: ensure third-party library modules have android.namespace.
+ * For AGP 8+, we use settings.gradle plugins DSL to manage AGP/Kotlin versions.
+ * No need to declare buildscript classpath here.
+ * We only keep repositories and utility tasks.
+ */
+
+/**
+ * Early-phase namespace injection for AGP 8+:
+ * ensure third-party Android library modules (e.g. amap_flutter_location) have android.namespace.
  */
 gradle.beforeProject { Project p ->
     try {
@@ -14,25 +19,14 @@ gradle.beforeProject { Project p ->
             p.android.namespace = 'com.amap.flutter.location'
             println("Early applied namespace 'com.amap.flutter.location' to :amap_flutter_location")
         }
-    } catch (Exception ignored) {}
-}
-    repositories {
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://maven.aliyun.com/repository/central' }
-        maven { url 'https://maven.aliyun.com/repository/public' }
-        maven { url 'https://storage.googleapis.com/download.flutter.io' }
-        google()
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath 'com.android.tools.build:gradle:7.4.2'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    } catch (Exception ignored) {
+        // no-op
     }
 }
 
 allprojects {
     repositories {
+        // Mirrors + official repos
         maven { url 'https://maven.aliyun.com/repository/google' }
         maven { url 'https://maven.aliyun.com/repository/central' }
         maven { url 'https://maven.aliyun.com/repository/public' }
@@ -45,12 +39,12 @@ allprojects {
 rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
+    // Make sure :app evaluated first for some plugins that expect it
     project.evaluationDependsOn(':app')
 }
 
 /**
- * Inject namespace for third-party Android library modules that miss it under AGP 8+.
- * This avoids editing plugin source under .pub-cache.
+ * Late-phase safety namespace injection
  */
 subprojects { subproject ->
     subproject.afterEvaluate {
@@ -58,8 +52,7 @@ subprojects { subproject ->
             if (subproject.name == "amap_flutter_location" &&
                 subproject.plugins.hasPlugin("com.android.library") &&
                 subproject.hasProperty("android") &&
-                ( !subproject.android.hasProperty("namespace") || subproject.android.namespace == null )
-            ) {
+                (!subproject.android.hasProperty("namespace") || subproject.android.namespace == null)) {
                 subproject.android.namespace = "com.amap.flutter.location"
                 println("Applied namespace 'com.amap.flutter.location' to :amap_flutter_location")
             }
