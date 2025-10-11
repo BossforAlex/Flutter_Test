@@ -14,6 +14,8 @@ pluginManagement {
         maven { url 'https://maven.aliyun.com/repository/google' }
         maven { url 'https://maven.aliyun.com/repository/central' }
         maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.amap.com/repository/maven-public' }
+        maven { url 'https://maven.aliyun.com/repository/amap' }
         maven { url 'https://storage.googleapis.com/download.flutter.io' }
         google()
         mavenCentral()
@@ -33,6 +35,8 @@ dependencyResolutionManagement {
         maven { url 'https://maven.aliyun.com/repository/google' }
         maven { url 'https://maven.aliyun.com/repository/central' }
         maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.amap.com/repository/maven-public' }
+        maven { url 'https://maven.aliyun.com/repository/amap' }
         maven { url 'https://storage.googleapis.com/download.flutter.io' }
         google()
         mavenCentral()

@@ -51,6 +51,10 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.debug
+            // Temporarily disable shrinking to avoid R8 missing-class issues for AMap SDK
+            minifyEnabled false
+            shrinkResources false
+            // If you later enable minify, ensure proper -keep rules for com.amap.api.**
         }
     }
 }
