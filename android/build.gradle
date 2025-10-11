@@ -43,24 +43,7 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
-/**
- * Late-phase safety namespace injection
- */
-subprojects { subproject ->
-    subproject.afterEvaluate {
-        try {
-            if (subproject.name == "amap_flutter_location" &&
-                subproject.plugins.hasPlugin("com.android.library") &&
-                subproject.hasProperty("android") &&
-                (!subproject.android.hasProperty("namespace") || subproject.android.namespace == null)) {
-                subproject.android.namespace = "com.amap.flutter.location"
-                println("Applied namespace 'com.amap.flutter.location' to :amap_flutter_location")
-            }
-        } catch (Exception ignored) {
-            // no-op
-        }
-    }
-}
+
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
