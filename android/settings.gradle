@@ -11,15 +11,12 @@ pluginManagement {
     includeBuild("${settings.ext.flutterSdkPath}/packages/flutter_tools/gradle")
 
     repositories {
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://maven.aliyun.com/repository/central' }
-        maven { url 'https://maven.aliyun.com/repository/public' }
-        maven { url 'https://maven.amap.com/repository/maven-public' }
-        maven { url 'https://maven.aliyun.com/repository/amap' }
-        maven { url 'https://storage.googleapis.com/download.flutter.io' }
+        // 官方源置前，确保 AGP 等插件可解析
         google()
-        mavenCentral()
         gradlePluginPortal()
+        mavenCentral()
+        maven { url 'https://storage.googleapis.com/download.flutter.io' }
+        // 注意：AMap 与镜像源仅配置在 dependencyResolutionManagement，不放在 pluginManagement
     }
 }
 
