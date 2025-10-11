@@ -12,20 +12,39 @@
  */
 gradle.beforeProject { Project p ->
     try {
-        // 映射需修正的 AMap 插件模块 -> 对应的 namespace
-        def amapNamespaces = [
+        // 已知 AMap 模块的命名空间映射（作为兜底）
+        def knownNs = [
             'amap_flutter_location': 'com.amap.flutter.location',
             'amap_flutter_map'     : 'com.amap.flutter.map',
+            'amap_flutter_base'    : 'com.amap.flutter.base',
+            'amap_flutter_search'  : 'com.amap.flutter.search',
+            'amap_flutter_common'  : 'com.amap.flutter.common',
+            'amap_flutter_navi'    : 'com.amap.flutter.navi',
         ]
-        if (amapNamespaces.containsKey(p.name)) {
-            p.plugins.withId('com.android.library') {
-                def androidExt = p.extensions.findByName('android')
-                if (androidExt != null) {
-                    boolean hasNs = false
-                    try { hasNs = androidExt.hasProperty('namespace') && androidExt.namespace != null } catch (Exception _) {}
-                    if (!hasNs) {
-                        androidExt.namespace = amapNamespaces[p.name]
-                        println("Applied namespace '${amapNamespaces[p.name]}' to :${p.name} (plugins.withId)")
+        p.plugins.withId('com.android.library') {
+            def androidExt = p.extensions.findByName('android')
+            if (androidExt != null) {
+                boolean hasNs = false
+                try { hasNs = androidExt.hasProperty('namespace') && androidExt.namespace != null } catch (Exception _) {}
+                if (!hasNs) {
+                    // 优先从模块 Manifest 读取 package
+                    def manifestFile = new File(p.projectDir, "src/main/AndroidManifest.xml")
+                    String pkg = null
+                    if (manifestFile.exists()) {
+                        try {
+                            def parser = new groovy.xml.XmlSlurper(false, false)
+                            def xml = parser.parse(manifestFile)
+                            pkg = xml.@package?.toString()
+                        } catch (Exception __) {
+                            // ignore parse errors
+                        }
+                    }
+                    String ns = pkg != null && pkg.trim()
+                            ? pkg.trim()
+                            : (knownNs.containsKey(p.name) ? knownNs[p.name] : null)
+                    if (ns != null) {
+                        androidExt.namespace = ns
+                        println("Applied namespace '${ns}' to :${p.name} (plugins.withId/beforeProject)")
                     }
                 }
             }
