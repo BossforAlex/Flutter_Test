@@ -12,12 +12,18 @@
  */
 gradle.beforeProject { Project p ->
     try {
-        if (p.name == 'amap_flutter_location' &&
-            p.plugins.hasPlugin('com.android.library') &&
-            p.hasProperty('android') &&
-            (!p.android.hasProperty('namespace') || p.android.namespace == null)) {
-            p.android.namespace = 'com.amap.flutter.location'
-            println("Early applied namespace 'com.amap.flutter.location' to :amap_flutter_location")
+        if (p.name == 'amap_flutter_location') {
+            p.plugins.withId('com.android.library') {
+                def androidExt = p.extensions.findByName('android')
+                if (androidExt != null) {
+                    def hasNs = false
+                    try { hasNs = androidExt.hasProperty('namespace') && androidExt.namespace != null } catch (Exception _) {}
+                    if (!hasNs) {
+                        androidExt.namespace = 'com.amap.flutter.location'
+                        println("Applied namespace 'com.amap.flutter.location' to :amap_flutter_location (plugins.withId)")
+                    }
+                }
+            }
         }
     } catch (Exception ignored) {
         // no-op
