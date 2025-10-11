@@ -45,6 +45,15 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- 高德标准广播接收器（静态注册，前后台可收） -->
+        <receiver
+            android:name=".AmapBroadcastReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="AUTONAVI_STANDARD_BROADCAST_SEND" />
+                <category android:name="AUTONAVI_STANDARD_CATEGORY" />
+            </intent-filter>
+        </receiver>
     </application>
 
     <!-- Required to query activities that can process text, see:
