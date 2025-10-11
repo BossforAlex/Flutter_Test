@@ -29,14 +29,29 @@ plugins {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
+        // 官方源优先，确保 Flutter/AGP 等从官方稳定拉取
+        google()
+        mavenCentral()
+        maven { url 'https://storage.googleapis.com/download.flutter.io' }
+
+        // AMap 仓库仅用于 com.amap.api 相关依赖，避免抢占 io.flutter 等其他构件
+        maven {
+            url 'https://maven.amap.com/repository/maven-public'
+            content {
+                includeGroup "com.amap.api"
+            }
+        }
+        maven {
+            url 'https://maven.aliyun.com/repository/amap'
+            content {
+                includeGroup "com.amap.api"
+            }
+        }
+
+        // 可选：阿里云通用镜像（置后，减少干扰）
         maven { url 'https://maven.aliyun.com/repository/google' }
         maven { url 'https://maven.aliyun.com/repository/central' }
         maven { url 'https://maven.aliyun.com/repository/public' }
-        maven { url 'https://maven.amap.com/repository/maven-public' }
-        maven { url 'https://maven.aliyun.com/repository/amap' }
-        maven { url 'https://storage.googleapis.com/download.flutter.io' }
-        google()
-        mavenCentral()
     }
 }
 
