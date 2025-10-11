@@ -18,39 +18,49 @@ class NavigationDataConverter {
     return statusMap[code] ?? '未知状态($code)';
   }
   
-  /// 将路线详情JSON数据转化为自然语言描述
+  /// 将路线详情JSON数据转化为自然语言描述（兼容多字段命名与类型）
   static String convertRouteDetails(Map<String, dynamic> routeData) {
     final buffer = StringBuffer();
-    
-    // 隐藏技术性字段，突出关键导航信息
-    if (routeData.containsKey('route_distance')) {
-      final distance = routeData['route_distance'] as double;
-      buffer.writeln('📏 总路程: ${_formatDistance(distance)}');
+
+    // 距离：支持 route_distance / remaining_distance / remainDistance
+    final num? distanceNum = _pickNum(routeData, ['route_distance', 'remaining_distance', 'remainDistance']);
+    if (distanceNum != null) {
+      buffer.writeln('📏 剩余路程: ${_formatDistance(distanceNum.toDouble())}');
     }
-    
-    if (routeData.containsKey('route_time')) {
-      final time = routeData['route_time'] as int;
-      buffer.writeln('⏰ 预计时间: ${_formatTime(time)}');
+
+    // 时间：支持 route_time / remaining_time / remainTime（秒）
+    final num? timeNum = _pickNum(routeData, ['route_time', 'remaining_time', 'remainTime']);
+    if (timeNum != null) {
+      buffer.writeln('⏰ 预计时间: ${_formatTime(timeNum.toInt())}');
     }
-    
-    if (routeData.containsKey('current_speed')) {
-      final speed = routeData['current_speed'] as double;
-      buffer.writeln('🚗 当前速度: ${speed.toStringAsFixed(1)} km/h');
+
+    // 当前速度：支持 current_speed / speed
+    final num? speedNum = _pickNum(routeData, ['current_speed', 'speed']);
+    if (speedNum != null) {
+      buffer.writeln('🚗 当前速度: ${speedNum.toStringAsFixed(1)} km/h');
     }
-    
-    if (routeData.containsKey('next_turn') && routeData.containsKey('next_road')) {
-      buffer.writeln('🔄 下一个动作: ${routeData['next_turn']}到${routeData['next_road']}');
+
+    // 下一步动作与道路：支持 next_turn/next_road，或 nextAction/nextRoad
+    final String? nextTurn = _pickString(routeData, ['next_turn', 'nextAction']);
+    final String? nextRoad = _pickString(routeData, ['next_road', 'nextRoad']);
+    if ((nextTurn != null && nextTurn.isNotEmpty) || (nextRoad != null && nextRoad.isNotEmpty)) {
+      final action = (nextTurn ?? '直行');
+      final road = (nextRoad ?? '');
+      buffer.writeln(road.isNotEmpty ? '🔄 下一个动作: $action 到 $road' : '🔄 下一个动作: $action');
     }
-    
-    if (routeData.containsKey('progress')) {
-      final progress = routeData['progress'] as int;
-      buffer.writeln('📊 行程进度: $progress%');
+
+    // 进度：progress(0-100)
+    final num? progress = _pickNum(routeData, ['progress']);
+    if (progress != null) {
+      buffer.writeln('📊 行程进度: ${progress.toInt()}%');
     }
-    
-    if (routeData.containsKey('destination')) {
-      buffer.writeln('🎯 目的地: ${routeData['destination']}');
+
+    // 目的地
+    final String? dest = _pickString(routeData, ['destination', 'destName']);
+    if (dest != null && dest.isNotEmpty) {
+      buffer.writeln('🎯 目的地: $dest');
     }
-    
+
     return buffer.toString();
   }
   
@@ -106,30 +116,56 @@ class NavigationDataConverter {
     return filteredData;
   }
   
-  /// 生成自然语言摘要
+  /// 生成自然语言摘要（更健壮的字段兼容）
   static String generateSummary(Map<String, dynamic> data) {
-    final summary = StringBuffer();
-    
-    if (data.containsKey('current_speed')) {
-      summary.write('正在以${data['current_speed']}km/h的速度');
+    final s = StringBuffer();
+
+    final num? speedNum = _pickNum(data, ['current_speed', 'speed']);
+    if (speedNum != null) {
+      s.write('以${speedNum.toStringAsFixed(1)}km/h');
     }
-    
-    if (data.containsKey('next_turn')) {
-      summary.write('，准备${data['next_turn']}');
+
+    final String? nextTurn = _pickString(data, ['next_turn', 'nextAction']);
+    if (nextTurn != null && nextTurn.isNotEmpty) {
+      s.write(s.isEmpty ? '准备$nextTurn' : '，准备$nextTurn');
     }
-    
-    if (data.containsKey('next_road')) {
-      summary.write('到${data['next_road']}');
+
+    final String? nextRoad = _pickString(data, ['next_road', 'nextRoad']);
+    if (nextRoad != null && nextRoad.isNotEmpty) {
+      s.write('到$nextRoad');
     }
-    
-    if (data.containsKey('route_distance')) {
-      summary.write('，剩余${_formatDistance(data['route_distance'])}');
+
+    final num? distanceNum = _pickNum(data, ['route_distance', 'remaining_distance', 'remainDistance']);
+    if (distanceNum != null) {
+      s.write('，剩余${_formatDistance(distanceNum.toDouble())}');
     }
-    
-    if (data.containsKey('route_time')) {
-      summary.write('，预计${_formatTime(data['route_time'])}到达');
+
+    final num? timeNum = _pickNum(data, ['route_time', 'remaining_time', 'remainTime']);
+    if (timeNum != null) {
+      s.write('，预计${_formatTime(timeNum.toInt())}到达');
     }
-    
-    return summary.toString().isEmpty ? '暂无导航信息' : summary.toString();
+
+    return s.isEmpty ? '暂无导航信息' : s.toString();
+  }
+  /// 从多个候选键中获取数值（优先第一个存在且可解析的）
+  static num? _pickNum(Map<String, dynamic> m, List<String> keys) {
+    for (final k in keys) {
+      final v = m[k];
+      if (v is num) return v;
+      if (v is String) {
+        final parsed = num.tryParse(v);
+        if (parsed != null) return parsed;
+      }
+    }
+    return null;
+  }
+
+  /// 从多个候选键中获取字符串（优先第一个非空）
+  static String? _pickString(Map<String, dynamic> m, List<String> keys) {
+    for (final k in keys) {
+      final v = m[k];
+      if (v is String && v.trim().isNotEmpty) return v.trim();
+    }
+    return null;
   }
 }

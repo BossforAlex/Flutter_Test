@@ -1,5 +1,21 @@
 buildscript {
-    ext.kotlin_version = '1.9.22'
+    ext.kotlin_version = '1.8.22'
+}
+
+/**
+ * Early-phase namespace injection for AGP 8+: ensure third-party library modules have android.namespace.
+ */
+gradle.beforeProject { Project p ->
+    try {
+        if (p.name == 'amap_flutter_location' &&
+            p.plugins.hasPlugin('com.android.library') &&
+            p.hasProperty('android') &&
+            (!p.android.hasProperty('namespace') || p.android.namespace == null)) {
+            p.android.namespace = 'com.amap.flutter.location'
+            println("Early applied namespace 'com.amap.flutter.location' to :amap_flutter_location")
+        }
+    } catch (Exception ignored) {}
+}
     repositories {
         maven { url 'https://maven.aliyun.com/repository/google' }
         maven { url 'https://maven.aliyun.com/repository/central' }
@@ -10,7 +26,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.2'
+        classpath 'com.android.tools.build:gradle:7.4.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -30,6 +46,27 @@ rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
     project.evaluationDependsOn(':app')
+}
+
+/**
+ * Inject namespace for third-party Android library modules that miss it under AGP 8+.
+ * This avoids editing plugin source under .pub-cache.
+ */
+subprojects { subproject ->
+    subproject.afterEvaluate {
+        try {
+            if (subproject.name == "amap_flutter_location" &&
+                subproject.plugins.hasPlugin("com.android.library") &&
+                subproject.hasProperty("android") &&
+                ( !subproject.android.hasProperty("namespace") || subproject.android.namespace == null )
+            ) {
+                subproject.android.namespace = "com.amap.flutter.location"
+                println("Applied namespace 'com.amap.flutter.location' to :amap_flutter_location")
+            }
+        } catch (Exception ignored) {
+            // no-op
+        }
+    }
 }
 
 tasks.register("clean", Delete) {

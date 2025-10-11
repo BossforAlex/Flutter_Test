@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'bluetooth_service.dart' as custom_bluetooth;
 
 /// 蓝牙控制页面 - 使用flutter_blue_plus实现真实蓝牙设备交互
@@ -244,7 +245,25 @@ class _BluetoothPageState extends State<BluetoothPage> {
     return '蓝牙未连接';
   }
 
-  void _startScan() {
+  Future<bool> _ensurePermissions() async {
+    // Android 12+ 蓝牙与定位权限；低版本将映射为老权限
+    final needed = <Permission>[
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.locationWhenInUse,
+    ];
+    final statuses = await needed.request();
+    final granted = statuses.values.every((s) => s.isGranted);
+    return granted;
+  }
+
+  void _startScan() async {
+    if (!await _ensurePermissions()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('缺少蓝牙/定位权限，无法扫描'), backgroundColor: Colors.red),
+      );
+      return;
+    }
     _bluetoothService.startScan();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -264,7 +283,13 @@ class _BluetoothPageState extends State<BluetoothPage> {
     );
   }
 
-  void _connectToDevice(BluetoothDevice device) {
+  void _connectToDevice(BluetoothDevice device) async {
+    if (!await _ensurePermissions()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('缺少蓝牙/定位权限，无法连接'), backgroundColor: Colors.red),
+      );
+      return;
+    }
     _bluetoothService.connectToDevice(device);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

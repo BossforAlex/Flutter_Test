@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'amap_listener_service.dart';
 import 'navigation_data_converter.dart';
@@ -104,7 +106,8 @@ class _NavigationListenerPageState extends State<NavigationListenerPage> {
   @override
   void initState() {
     super.initState();
-    _startListening();
+    // 先加载缓存，再启动监听
+    _loadCache().whenComplete(_startListening);
   }
 
   Future<void> _startListening() async {
@@ -133,7 +136,13 @@ class _NavigationListenerPageState extends State<NavigationListenerPage> {
           'data': filtered,
           'description': summary.isNotEmpty ? summary : NavigationDataConverter.convertRouteDetails(filtered),
         });
+        // 控制长度，最多 100 条
+        if (_navigationData.length > 100) {
+          _navigationData.removeRange(0, _navigationData.length - 100);
+        }
       });
+      // 持久化
+      _saveCache();
     });
 
     setState(() {
@@ -153,11 +162,13 @@ class _NavigationListenerPageState extends State<NavigationListenerPage> {
     });
   }
 
-  void _clearData() {
+  void _clearData() async {
     setState(() {
       _navigationData.clear();
       _currentStatus = '数据已清空';
     });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('nav_cache');
   }
 
   void _copyData() {
@@ -228,6 +239,45 @@ class _NavigationListenerPageState extends State<NavigationListenerPage> {
         );
       },
     );
+  }
+
+  // 缓存：加载与保存
+  Future<void> _loadCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('nav_cache');
+    if (list == null) return;
+    try {
+      final restored = list.map((s) => jsonDecode(s) as Map<String, dynamic>).toList();
+      setState(() {
+        _navigationData
+          ..clear()
+          ..addAll(restored.map((e) {
+            // timestamp 使用 ISO8601 字符串保存，这里转回 DateTime
+            final ts = e['timestamp'];
+            if (ts is String) {
+              e['timestamp'] = DateTime.tryParse(ts) ?? DateTime.now();
+            }
+            return e;
+          }));
+      });
+    } catch (_) {
+      // 忽略损坏缓存
+    }
+  }
+
+  Future<void> _saveCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = _navigationData.map((e) {
+      final map = {
+        'timestamp': (e['timestamp'] is DateTime)
+            ? (e['timestamp'] as DateTime).toIso8601String()
+            : DateTime.now().toIso8601String(),
+        'description': e['description']?.toString() ?? '',
+        'data': e['data'] is Map<String, dynamic> ? e['data'] : {},
+      };
+      return jsonEncode(map);
+    }).toList(growable: false);
+    await prefs.setStringList('nav_cache', list);
   }
 
   @override

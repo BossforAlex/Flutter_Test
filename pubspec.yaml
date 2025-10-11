@@ -3,7 +3,7 @@ description: AmapAuto监听器 - 优化数据展示版本
 
 publish_to: 'none'
 
-version: 3.0.0+2
+version: 3.0.1+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -19,6 +19,7 @@ dependencies:
   amap_flutter_map: ^3.0.0
   shared_preferences: ^2.2.2
   clipboard: ^0.1.3
+  permission_handler: ^11.3.0
 
 dev_dependencies:
   flutter_test:
