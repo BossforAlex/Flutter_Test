@@ -1,0 +1,135 @@
+# 工作流名称
+name: Flutter CI/CD Release
+
+# 触发条件：在 push 到 main 分支时触发
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# 定义工作流中的任务
+jobs:
+  build_and_release:
+    # 运行环境：使用最新的 Ubuntu
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+
+    # 任务步骤
+    steps:
+      # 步骤1: 检出代码 (fetch-depth: 0 用于获取所有 tags)
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 步骤2: 设置 Java 环境
+      - name: 设置 Java 环境
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # 步骤3: 设置 Android SDK
+      - name: 设置 Android SDK
+        uses: android-actions/setup-android@v3
+
+      # 步骤4: 安装 Flutter SDK
+      - name: 安装 Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+          cache: true
+
+      # 步骤5: 缓存 Flutter 依赖包
+      - name: 缓存 Flutter 依赖包
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PUB_CACHE }}
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+      
+      # 步骤6: 缓存 Gradle 依赖
+      - name: 缓存 Gradle 依赖
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ github.sha }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # 步骤7: 获取项目依赖
+      - name: 获取项目依赖
+        run: flutter pub get
+
+      # 步骤8: 生成版本号和标签
+      - name: 生成版本号和标签
+        id: version
+        run: |
+          # 从 pubspec.yaml 读取版本号
+          version_string=$(grep '^version: ' pubspec.yaml | sed 's/version: //')
+          base_version=$(echo $version_string | cut -d '+' -f 1)
+          build_number=$(echo $version_string | cut -d '+' -f 2)
+
+          # 增加构建号
+          new_build_number=$((build_number + 1))
+          new_version="${base_version}+${new_build_number}"
+          
+          echo "New version for this build: $new_version"
+          
+          # 更新 pubspec.yaml 以用于本次构建
+          sed -i "s/^version: .*/version: $new_version/" pubspec.yaml
+          
+          echo "Updated pubspec.yaml with version $new_version for this build."
+          
+          # 为后续步骤设置输出
+          echo "TAG_NAME=v$new_version" >> $GITHUB_ENV
+          echo "NEW_VERSION=$new_version" >> $GITHUB_ENV
+
+      # 步骤9: 接受 Android 许可
+      - name: 接受 Android 许可
+        run: yes | flutter doctor --android-licenses
+
+      # 步骤10: 构建 APK
+      - name: 构建 APK
+        run: flutter build apk --release
+
+      # 步骤11: 创建发布说明
+      - name: 创建发布说明
+        id: create_release_notes
+        run: |
+          cat <<EOF > release_notes.md
+          ## AmapAuto Listener $NEW_VERSION
+
+          **中文:**
+          - 新版本: $NEW_VERSION.
+          - UI 重构为滚动式布局，遵循 Material Design 设计规范。
+          - 在数据展示区左侧添加了 ISO 8601 格式的时间戳。
+          - 实现了数据去重、虚拟滚动和连续相同数据的视觉分隔符以优化性能和体验。
+          - 修复了构建过程中的错误。
+
+          ---
+
+          **English:**
+          - New version: $NEW_VERSION.
+          - Refactored UI to a scrollable layout following Material Design guidelines.
+          - Added ISO 8601 formatted timestamps to the data display.
+          - Implemented data deduplication, virtual scrolling, and visual separators for identical consecutive data to improve performance and UX.
+          - Fixed build process errors.
+          EOF
+
+      # 步骤12: 发布到 GitHub Releases
+      - name: 发布到 GitHub Releases
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: "build/app/outputs/flutter-apk/app-release.apk"
+          tag: ${{ env.TAG_NAME }}
+          bodyFile: "release_notes.md"
+          allowUpdates: true

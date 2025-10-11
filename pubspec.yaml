@@ -1,0 +1,29 @@
+name: amapauto_listener
+description: AmapAuto监听器 - 优化数据展示版本
+
+publish_to: 'none'
+
+version: 3.0.0+2
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.7
+  scrollable_positioned_list: ^0.3.8
+  intl: ^0.19.0
+  flutter_blue_plus: ^1.14.6
+  amap_flutter_location: 3.0.0
+  amap_flutter_map: ^3.0.0
+  shared_preferences: ^2.2.2
+  clipboard: ^0.1.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,31 @@
+# Flutter & Android build artifacts
+/build/
+.android/
+.ios/
+.flutter-plugins
+.flutter-plugins-dependencies
+.dart_tool/
+.melos_tool/
+
+# Android
+android/.gradle/
+android/local.properties
+android/build/
+android/app/build/
+android/app/build/outputs/
+android/app/build/outputs/apk/
+**/*.apk
+**/*.aab
+
+# iOS
+ios/Flutter/.last_build_id
+ios/Pods/
+ios/build/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Misc
+pubspec.lock
