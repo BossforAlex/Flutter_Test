@@ -7,13 +7,6 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
-    <!-- 蓝牙权限（Android 12+ 分组权限） -->
-    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
-
     <application
         android:label="AmapAuto监听器"
         android:name="${applicationName}"
@@ -45,13 +38,20 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <!-- 高德标准广播接收器（静态注册，前后台可收） -->
+        <!-- 高优先级的高德标准广播接收器（支持带/不带 Category，两种Action） -->
         <receiver
             android:name=".AmapBroadcastReceiver"
             android:exported="true">
-            <intent-filter>
+            <!-- 过滤器1：带 Category -->
+            <intent-filter android:priority="1000">
                 <action android:name="AUTONAVI_STANDARD_BROADCAST_SEND" />
+                <action android:name="AUTONAVI_STANDARD_BROADCAST_RECV" />
                 <category android:name="AUTONAVI_STANDARD_CATEGORY" />
+            </intent-filter>
+            <!-- 过滤器2：仅 Action，不带 Category，提升兼容性 -->
+            <intent-filter android:priority="1000">
+                <action android:name="AUTONAVI_STANDARD_BROADCAST_SEND" />
+                <action android:name="AUTONAVI_STANDARD_BROADCAST_RECV" />
             </intent-filter>
         </receiver>
     </application>
