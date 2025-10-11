@@ -54,6 +54,16 @@ gradle.beforeProject { Project p ->
     }
 }
 
+ext {
+    // Provide legacy flutter.* values for plugins expecting them
+    flutter = [
+        minSdkVersion     : 21,
+        targetSdkVersion  : 34,
+        compileSdkVersion : 34,
+        ndkVersion        : "25.1.8937393"
+    ]
+}
+
 allprojects {
     repositories {
         // Mirrors + official repos
