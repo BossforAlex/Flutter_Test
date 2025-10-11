@@ -12,15 +12,20 @@
  */
 gradle.beforeProject { Project p ->
     try {
-        if (p.name == 'amap_flutter_location') {
+        // 映射需修正的 AMap 插件模块 -> 对应的 namespace
+        def amapNamespaces = [
+            'amap_flutter_location': 'com.amap.flutter.location',
+            'amap_flutter_map'     : 'com.amap.flutter.map',
+        ]
+        if (amapNamespaces.containsKey(p.name)) {
             p.plugins.withId('com.android.library') {
                 def androidExt = p.extensions.findByName('android')
                 if (androidExt != null) {
-                    def hasNs = false
+                    boolean hasNs = false
                     try { hasNs = androidExt.hasProperty('namespace') && androidExt.namespace != null } catch (Exception _) {}
                     if (!hasNs) {
-                        androidExt.namespace = 'com.amap.flutter.location'
-                        println("Applied namespace 'com.amap.flutter.location' to :amap_flutter_location (plugins.withId)")
+                        androidExt.namespace = amapNamespaces[p.name]
+                        println("Applied namespace '${amapNamespaces[p.name]}' to :${p.name} (plugins.withId)")
                     }
                 }
             }
