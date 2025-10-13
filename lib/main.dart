@@ -128,11 +128,18 @@ class _NavigationListenerPageState extends State<NavigationListenerPage> {
       // 生成自然语言描述（隐藏技术字段，突出关键导航信息）
       final filtered = NavigationDataConverter.filterTechnicalFields(data);
       final summary0 = NavigationDataConverter.generateSummary(filtered);
-      final String desc = (summary0.isNotEmpty ? summary0 : NavigationDataConverter.convertRouteDetails(filtered)).trim();
+      String desc = (summary0.isNotEmpty ? summary0 : NavigationDataConverter.convertRouteDetails(filtered)).trim();
 
-      // 跳过无效摘要
+      // 如果描述为空或为"暂无导航信息"，使用状态信息作为描述
       if (desc.isEmpty || desc == '暂无导航信息') {
-        return;
+        // 状态优先从 status(int) 获取，否则从 action(string) 解释
+        if (data['status'] is int) {
+          desc = NavigationDataConverter.convertStatusCode(data['status'] as int);
+        } else if (data['action'] is String) {
+          desc = NavigationDataConverter.convertNavigationAction(data['action'] as String);
+        } else {
+          desc = '收到导航数据';
+        }
       }
 
       // 取 keyType（车机协议常见使用 KEY_TYPE），默认按导航状态类型 10001 去重
