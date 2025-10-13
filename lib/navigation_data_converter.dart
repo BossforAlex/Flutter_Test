@@ -197,5 +197,29 @@ class NavigationDataConverter {
     // curSpeed/EXTRA_CUR_SPEED 通常为 km/h 的整数；如遇 m/s 可在未来扩展判断
     final d = n.toDouble();
     return d.toStringAsFixed(d == d.roundToDouble() ? 0 : 1) + ' km/h';
+  }
+
+  // 距离格式化：<1000 米按米显示，否则按公里保留1位小数
+  static String _formatDistance(double distance) {
+    if (distance < 1000) {
+      return '${distance.toStringAsFixed(0)}米';
+    } else {
+      return '${(distance / 1000).toStringAsFixed(1)}公里';
     }
+  }
+
+  // 时间格式化：秒 -> x小时y分 或 x分y秒 或 x秒
+  static String _formatTime(int seconds) {
+    if (seconds < 60) {
+      return '$seconds秒';
+    } else if (seconds < 3600) {
+      final minutes = seconds ~/ 60;
+      final remainingSeconds = seconds % 60;
+      return '$minutes分${remainingSeconds}秒';
+    } else {
+      final hours = seconds ~/ 3600;
+      final minutes = (seconds % 3600) ~/ 60;
+      return '${hours}小时${minutes}分';
+    }
+  }
 }
