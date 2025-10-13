@@ -3,7 +3,7 @@ class NavigationDataConverter {
   /// 将状态码转换为文字说明
   static String convertStatusCode(int code) {
     final statusMap = {
-      0: '导航未开始',
+      0: '无法获取导航状态，导航未开始',
       1: '导航进行中',
       2: '导航已暂停',
       3: '导航已结束',
@@ -64,7 +64,7 @@ class NavigationDataConverter {
     // 限速：limitSpeed
     final num? limitSpeed = _pickNum(routeData, ['limitSpeed', 'speed_limit', 'limit_speed']);
     if (limitSpeed != null) {
-      buffer.writeln('⛔ 限速: ${limitSpeed.toString()} km/h');
+      buffer.writeln('⛔ 限速: $limitSpeed km/h');
     }
 
     // 目的地
@@ -80,21 +80,23 @@ class NavigationDataConverter {
   static String generateSummary(Map<String, dynamic> data) {
     final s = StringBuffer();
 
+    // 首先检查状态码，如果状态码表示未开始导航，直接返回状态说明
+    final int? statusCode = _pickNum(data, ['status', 'nav_status', 'navigation_status'])?.toInt();
+    if (statusCode != null) {
+      final statusText = convertStatusCode(statusCode);
+      if (statusCode == 0 || statusCode == 9) { // 未开始或等待开始
+        return statusText;
+      }
+      s.write(statusText);
+    }
+
     // 动作（含 KEY_ACTION 的英文动作）
-    String? nextTurn = _pickString(data, ['next_turn', 'nextAction']);
+    String? nextTurn = _pickString(data, ['next_turn', 'nextAction', 'action']);
     nextTurn ??= _pickString(data, ['KEY_ACTION']);
     if (nextTurn != null && nextTurn.isNotEmpty) {
       nextTurn = convertNavigationAction(nextTurn);
-    }
-
-    // 当前速度：支持 current_speed / speed / curSpeed
-    final num? speedNum = _pickNum(data, ['current_speed', 'speed', 'curSpeed']);
-    if (speedNum != null) {
-      s.write('以${_formatSpeed(speedNum)}');
-    }
-
-    if (nextTurn != null && nextTurn.isNotEmpty) {
-      s.write(s.isEmpty ? '准备$nextTurn' : '，准备$nextTurn');
+      if (s.isNotEmpty) s.write('，');
+      s.write('准备$nextTurn');
     }
 
     // 下一道路
@@ -103,21 +105,31 @@ class NavigationDataConverter {
       s.write('到$nextRoad');
     }
 
+    // 当前速度：支持 current_speed / speed / curSpeed
+    final num? speedNum = _pickNum(data, ['current_speed', 'speed', 'curSpeed']);
+    if (speedNum != null) {
+      if (s.isNotEmpty) s.write('，');
+      s.write('当前速度${_formatSpeed(speedNum)}');
+    }
+
     // 剩余距离/时间
     final num? distanceNum = _pickNum(data, ['route_distance', 'remaining_distance', 'remainDistance']);
     if (distanceNum != null) {
-      s.write('，剩余${_formatDistance(distanceNum.toDouble())}');
+      if (s.isNotEmpty) s.write('，');
+      s.write('剩余${_formatDistance(distanceNum.toDouble())}');
     }
 
     final num? timeNum = _pickNum(data, ['route_time', 'remaining_time', 'remainTime']);
     if (timeNum != null) {
-      s.write('，预计${_formatTime(timeNum.toInt())}到达');
+      if (s.isNotEmpty) s.write('，');
+      s.write('预计${_formatTime(timeNum.toInt())}到达');
     }
 
     // 限速
     final num? limitSpeed = _pickNum(data, ['limitSpeed', 'speed_limit', 'limit_speed']);
     if (limitSpeed != null) {
-      s.write('，限速${limitSpeed.toString()}km/h');
+      if (s.isNotEmpty) s.write('，');
+      s.write('限速$limitSpeed km/h');
     }
 
     // 当前道路补充（若摘要仍过短）
@@ -152,6 +164,12 @@ class NavigationDataConverter {
       'keep-right': '靠右',
       'merge': '并入主路',
       'roundabout': '进入环岛',
+      
+      // 高德地图常见动作
+      'ACTION_NAVIGATE': '开始导航',
+      'ACTION_LOCATION': '位置更新',
+      'ACTION_NAVI_DATA': '导航数据',
+      'ACTION_NAVIGATION': '导航状态',
     };
     return actionMap[action] ?? action;
   }
@@ -196,7 +214,8 @@ class NavigationDataConverter {
   static String _formatSpeed(num n) {
     // curSpeed/EXTRA_CUR_SPEED 通常为 km/h 的整数；如遇 m/s 可在未来扩展判断
     final d = n.toDouble();
-    return d.toStringAsFixed(d == d.roundToDouble() ? 0 : 1) + ' km/h';
+    final decimalPlaces = d == d.roundToDouble() ? 0 : 1;
+    return '${d.toStringAsFixed(decimalPlaces)} km/h';
   }
 
   // 距离格式化：<1000 米按米显示，否则按公里保留1位小数
@@ -215,11 +234,11 @@ class NavigationDataConverter {
     } else if (seconds < 3600) {
       final minutes = seconds ~/ 60;
       final remainingSeconds = seconds % 60;
-      return '$minutes分${remainingSeconds}秒';
+      return '$minutes分$remainingSeconds秒';
     } else {
       final hours = seconds ~/ 3600;
       final minutes = (seconds % 3600) ~/ 60;
-      return '${hours}小时${minutes}分';
+      return '$hours小时$minutes分';
     }
   }
 }

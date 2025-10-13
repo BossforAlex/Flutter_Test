@@ -189,12 +189,12 @@ object AmapNavBridge : EventChannel.StreamHandler, MethodChannel.MethodCallHandl
                     "AUTONAVI_STANDARD_BROADCAST_SEND",
                     "AUTONAVI_STANDARD_BROADCAST_RECV"
                 ) })
-                // 若动态接收器已激活，重注冊以应用新 Actions
-                dynamicReceiver?.let {
-                    runCatching { context?.unregisterReceiver(it) }
-                    dynamicReceiver = null
-                    // 重新开启监听将按新 actions 注册
-                    // 也可直接立即注册
+                
+                // 如果动态接收器已存在，重新注册以应用新的Actions
+                val currentReceiver = dynamicReceiver
+                if (currentReceiver != null) {
+                    runCatching { context?.unregisterReceiver(currentReceiver) }
+                    
                     dynamicReceiver = object : BroadcastReceiver() {
                         override fun onReceive(ctx: Context?, intent: Intent?) {
                             val act = intent?.action
@@ -203,6 +203,7 @@ object AmapNavBridge : EventChannel.StreamHandler, MethodChannel.MethodCallHandl
                                 val data = HashMap<String, Any?>()
                                 fun s(key: String): String? = intent.getStringExtra(key)
                                 fun i(key: String): Int? = if (intent.hasExtra(key)) intent.getIntExtra(key, -1) else null
+
                                 data["type"] = i("KEY_TYPE")
                                 data["action"] = s("KEY_ACTION")
                                 data["roadName"] = s("EXTRA_ROAD_NAME")
@@ -211,10 +212,21 @@ object AmapNavBridge : EventChannel.StreamHandler, MethodChannel.MethodCallHandl
                                 data["remainTime"] = i("EXTRA_REMAIN_TIME")
                                 data["curSpeed"] = i("EXTRA_CUR_SPEED")
                                 data["limitSpeed"] = i("EXTRA_LIMIT_SPEED")
+                                // 透传所有 extras，避免遗漏协议字段
+                                intent.extras?.keySet()?.forEach { k ->
+                                    if (!data.containsKey(k)) {
+                                        val v = intent.extras?.get(k)
+                                        when (v) {
+                                            is String, is Int, is Long, is Boolean, is Float, is Double -> data[k] = v
+                                        }
+                                    }
+                                }
                                 postEvent(data)
                             }
                         }
                     }
+                    
+                    // 重新注册过滤器
                     val f1 = IntentFilter().apply {
                         priority = 1000
                         actions.forEach { addAction(it) }

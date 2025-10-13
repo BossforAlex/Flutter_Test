@@ -261,17 +261,21 @@ class _BluetoothPageState extends State<BluetoothPage> {
     // 检查蓝牙适配器状态
     final state = await FlutterBluePlus.adapterState.first;
     if (state != BluetoothAdapterState.on) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先在系统设置中开启蓝牙'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('请先在系统设置中开启蓝牙'), backgroundColor: Colors.red),
+        );
+      }
       return false;
     }
     // 检查定位服务（Android 12+ 扫描依赖定位服务开启）
     final service = await Permission.locationWhenInUse.serviceStatus;
     if (!service.isEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('定位服务未开启，无法扫描。请开启系统定位服务后重试'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('定位服务未开启，无法扫描。请开启系统定位服务后重试'), backgroundColor: Colors.red),
+        );
+      }
       return false;
     }
     return true;
@@ -279,6 +283,7 @@ class _BluetoothPageState extends State<BluetoothPage> {
 
   void _startScan() async {
     if (!await _ensurePermissions()) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('缺少蓝牙/定位权限，无法扫描'), backgroundColor: Colors.red),
       );
@@ -287,49 +292,58 @@ class _BluetoothPageState extends State<BluetoothPage> {
     if (!await _ensureBluetoothReady()) return;
 
     _bluetoothService.startScan();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('开始扫描蓝牙设备'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('开始扫描蓝牙设备'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    }
   }
 
   void _stopScan() {
     _bluetoothService.stopScan();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('停止扫描蓝牙设备'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('停止扫描蓝牙设备'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
   }
 
   void _connectToDevice(BluetoothDevice device) async {
     if (!await _ensurePermissions()) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('缺少蓝牙/定位权限，无法连接'), backgroundColor: Colors.red),
       );
       return;
     }
     _bluetoothService.connectToDevice(device);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('正在连接: ${device.advName}'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('正在连接: ${device.advName}'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    }
   }
 
   void _disconnectDevice() {
     if (_connectedDevice != null) {
       _bluetoothService.disconnectDevice();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('断开连接: ${_connectedDevice!.advName}'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('断开连接: ${_connectedDevice!.advName}'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
   }
 

@@ -21,14 +21,20 @@ class AmapListenerService {
 
   Future<void> startListening() async {
     if (_isListening) return;
-    // 订阅原生事件流
-    _ecSub ??= _ec.receiveBroadcastStream().listen((event) {
+    
+    // 先取消之前的订阅（如果有）
+    await _ecSub?.cancel();
+    _ecSub = null;
+    
+    // 重新订阅原生事件流
+    _ecSub = _ec.receiveBroadcastStream().listen((event) {
       if (event is Map) {
         _controller.add(Map<String, dynamic>.from(event));
       }
     }, onError: (e) {
       _controller.add({'type': 'error', 'message': '$e', 'timestamp': DateTime.now().millisecondsSinceEpoch});
     });
+    
     await _mc.invokeMethod('startNavigationListener');
     _isListening = true;
     _controller.add({'type': 'status', 'message': '开始监听高德地图导航数据', 'timestamp': DateTime.now().millisecondsSinceEpoch});
@@ -36,7 +42,11 @@ class AmapListenerService {
 
   Future<void> stopListening() async {
     if (!_isListening) return;
+    
     await _mc.invokeMethod('stopNavigationListener');
+    await _ecSub?.cancel();
+    _ecSub = null;
+    
     _isListening = false;
     _controller.add({'type': 'status', 'message': '停止监听高德地图导航数据', 'timestamp': DateTime.now().millisecondsSinceEpoch});
   }

@@ -39,12 +39,17 @@ class BluetoothService {
         // 蓝牙已关闭，停止扫描
         _stopScan();
         _scanStatusStreamController.add(false);
+        // 蓝牙关闭时断开所有连接
+        if (_connectedDevice != null) {
+          _connectedDevice!.disconnect();
+          _connectedDevice = null;
+          _connectionStatusStreamController.add(null);
+        }
       }
     });
 
-    // 监听设备连接状态 - 使用正确的API
+    // 监听设备连接状态变化 - 通过适配器状态变化来监听
     FlutterBluePlus.adapterState.listen((state) {
-      // 适配器状态变化处理
       _updateConnectionStatus();
     });
   }
@@ -111,12 +116,13 @@ class BluetoothService {
       _connectedDevice = device;
       _connectionStatusStreamController.add(device);
 
-      // 监听设备断开连接 - 使用正确的API
+      // 监听设备连接状态变化
       device.connectionState.listen((state) {
         if (state == BluetoothConnectionState.disconnected) {
           _connectedDevice = null;
           _connectionStatusStreamController.add(null);
         }
+        _updateConnectionStatus();
       });
 
     } catch (e) {
