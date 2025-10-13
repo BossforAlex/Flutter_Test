@@ -8,6 +8,7 @@ import 'amap_listener_service.dart';
 import 'navigation_data_converter.dart';
 import 'bluetooth_page.dart';
 import 'bluetooth_service.dart' as custom_bluetooth;
+import 'broadcast_deduplicator.dart';
 
 void main() {
   runApp(const MyApp());
@@ -103,6 +104,9 @@ class _NavigationListenerPageState extends State<NavigationListenerPage> {
   String _currentStatus = '等待导航开始';
   bool _isListening = false;
 
+  // 去重器：按 keyType + 摘要内容进行时间窗与内容去重
+  final BroadcastDataDeduplicator _dedup = BroadcastDataDeduplicator();
+
   @override
   void initState() {
     super.initState();
@@ -123,7 +127,21 @@ class _NavigationListenerPageState extends State<NavigationListenerPage> {
 
       // 生成自然语言描述（隐藏技术字段，突出关键导航信息）
       final filtered = NavigationDataConverter.filterTechnicalFields(data);
-      final summary = NavigationDataConverter.generateSummary(filtered);
+      final summary0 = NavigationDataConverter.generateSummary(filtered);
+      final String desc = (summary0.isNotEmpty ? summary0 : NavigationDataConverter.convertRouteDetails(filtered)).trim();
+
+      // 跳过无效摘要
+      if (desc.isEmpty || desc == '暂无导航信息') {
+        return;
+      }
+
+      // 取 keyType（车机协议常见使用 KEY_TYPE），默认按导航状态类型 10001 去重
+      final int keyType = (data['type'] is int) ? data['type'] as int : 10001;
+
+      // 去重（时间窗+内容）
+      if (!_dedup.shouldProcess(keyType, desc)) {
+        return;
+      }
 
       // 状态优先从 status(int) 获取，否则从 action(string) 解释
       String statusText = '数据更新';
@@ -139,7 +157,7 @@ class _NavigationListenerPageState extends State<NavigationListenerPage> {
         _navigationData.add({
           'timestamp': DateTime.now(),
           'data': filtered,
-          'description': summary.isNotEmpty ? summary : NavigationDataConverter.convertRouteDetails(filtered),
+          'description': desc,
         });
         // 控制长度，最多 100 条
         if (_navigationData.length > 100) {
