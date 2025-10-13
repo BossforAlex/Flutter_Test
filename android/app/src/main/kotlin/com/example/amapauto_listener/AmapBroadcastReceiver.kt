@@ -3,6 +3,7 @@ package com.example.amapauto_listener
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 
 /**
  * 静态注册的高德标准广播接收器
@@ -13,7 +14,13 @@ import android.content.Intent
 class AmapBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         if (intent == null) return
-        if (intent.action == "AUTONAVI_STANDARD_BROADCAST_SEND") {
+        val actions = setOf(
+            "AUTONAVI_STANDARD_BROADCAST_SEND",
+            "AUTONAVI_STANDARD_BROADCAST_RECV"
+        )
+        val act = intent.action
+        if (act != null && actions.contains(act)) {
+            Log.d("AmapBroadcastReceiver", "onReceive: $act extras=${intent.extras}")
             val data = HashMap<String, Any?>()
 
             // 常见字段键名（不同系统版本可能存在差异，尽量容错）
@@ -32,9 +39,15 @@ class AmapBroadcastReceiver : BroadcastReceiver() {
             data["curSpeed"] = i("EXTRA_CUR_SPEED")
             data["limitSpeed"] = i("EXTRA_LIMIT_SPEED")
 
-            // 其他可能的扩展字段（按需增加）
-            data["segmentSpeed"] = i("EXTRA_SEGMENT_SPEED")
-            data["cameraSpeed"] = i("EXTRA_CAMERA_SPEED")
+            // 透传 extras 中的其他字段（例如：EXTRA_DAY_NIGHT_MODE 等）
+            intent.extras?.keySet()?.forEach { k ->
+                if (!data.containsKey(k)) {
+                    val v = intent.extras?.get(k)
+                    when (v) {
+                        is String, is Int, is Long, is Boolean, is Float, is Double -> data[k] = v
+                    }
+                }
+            }
 
             AmapNavBridge.postEvent(data)
         }

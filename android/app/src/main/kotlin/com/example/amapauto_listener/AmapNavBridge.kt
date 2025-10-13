@@ -37,6 +37,8 @@ object AmapNavBridge : EventChannel.StreamHandler, MethodChannel.MethodCallHandl
         fun makeIntent(action: String, withCategory: Boolean): Intent {
             val it = Intent(action)
             if (withCategory) it.addCategory("AUTONAVI_STANDARD_CATEGORY")
+            // 符合高德协议示例，提升可达性
+            it.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
             // 常用键写入 extras（保留原样，若没有传入则忽略）
             fun putString(key: String) { (payload[key] as? String)?.let { v -> it.putExtra(key, v) } }
             fun putInt(key: String) { (payload[key] as? Int)?.let { v -> it.putExtra(key, v) } }
@@ -121,7 +123,15 @@ object AmapNavBridge : EventChannel.StreamHandler, MethodChannel.MethodCallHandl
                                 data["remainTime"] = i("EXTRA_REMAIN_TIME")
                                 data["curSpeed"] = i("EXTRA_CUR_SPEED")
                                 data["limitSpeed"] = i("EXTRA_LIMIT_SPEED")
-
+                                // 透传所有 extras，避免遗漏协议字段
+                                intent.extras?.keySet()?.forEach { k ->
+                                    if (!data.containsKey(k)) {
+                                        val v = intent.extras?.get(k)
+                                        when (v) {
+                                            is String, is Int, is Long, is Boolean, is Float, is Double -> data[k] = v
+                                        }
+                                    }
+                                }
                                 postEvent(data)
                             }
                         }
