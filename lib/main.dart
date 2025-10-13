@@ -112,6 +112,11 @@ class _NavigationListenerPageState extends State<NavigationListenerPage> {
 
   Future<void> _startListening() async {
     if (_isListening) return;
+    // 显式配置标准 Action，提升兼容性（与原生默认一致，但可确保动态注册时生效）
+    await _amapService.setActions(const [
+      'AUTONAVI_STANDARD_BROADCAST_SEND',
+      'AUTONAVI_STANDARD_BROADCAST_RECV',
+    ]);
     await _amapService.startListening();
     _subscription = _amapService.navigationStream.listen((data) {
       if (!mounted) return;
@@ -241,6 +246,61 @@ class _NavigationListenerPageState extends State<NavigationListenerPage> {
     );
   }
 
+  // 调试工具：设置Actions / 发送测试广播
+  void _openDebugTools() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const ListTile(
+                  leading: Icon(Icons.bug_report),
+                  title: Text('调试工具'),
+                  subtitle: Text('快速验证标准广播通路'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.tune),
+                  title: const Text('设置标准Actions'),
+                  subtitle: const Text('AUTONAVI_STANDARD_BROADCAST_SEND / RECV'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _amapService.setActions(const [
+                      'AUTONAVI_STANDARD_BROADCAST_SEND',
+                      'AUTONAVI_STANDARD_BROADCAST_RECV',
+                    ]);
+                    if (!_isListening) {
+                      await _startListening();
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('已设置标准Actions并确保监听开启')),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.speaker_phone),
+                  title: const Text('发送测试广播'),
+                  subtitle: const Text('验证接收器与通道是否正常'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _amapService.sendTestBroadcast();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('已发送测试广播')),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   // 缓存：加载与保存
   Future<void> _loadCache() async {
     final prefs = await SharedPreferences.getInstance();
@@ -300,6 +360,11 @@ class _NavigationListenerPageState extends State<NavigationListenerPage> {
             icon: const Icon(Icons.content_copy),
             onPressed: _copyData,
             tooltip: '复制信息',
+          ),
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: _openDebugTools,
+            tooltip: '调试',
           ),
           IconButton(
             icon: const Icon(Icons.storage),
