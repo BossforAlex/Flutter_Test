@@ -26,6 +26,11 @@ object AmapNavBridge : EventChannel.StreamHandler, MethodChannel.MethodCallHandl
     private var eventSink: EventChannel.EventSink? = null
     private var dynamicReceiver: BroadcastReceiver? = null
     private var lastEvent: Map<String, Any?>? = null
+    // 可运行时配置的 Action 列表，默认含 SEND/RECV
+    private var actions: MutableSet<String> = mutableSetOf(
+        "AUTONAVI_STANDARD_BROADCAST_SEND",
+        "AUTONAVI_STANDARD_BROADCAST_RECV"
+    )
 
     private fun sendBroadcasts(payload: Map<String, Any?>) {
         val ctx = context ?: return
@@ -99,10 +104,6 @@ object AmapNavBridge : EventChannel.StreamHandler, MethodChannel.MethodCallHandl
             "startNavigationListener" -> {
                 // 可选：动态注册（与 Manifest 静态注册互补）
                 if (dynamicReceiver == null) {
-                    val actions = listOf(
-                        "AUTONAVI_STANDARD_BROADCAST_SEND",
-                        "AUTONAVI_STANDARD_BROADCAST_RECV"
-                    )
                     dynamicReceiver = object : BroadcastReceiver() {
                         override fun onReceive(ctx: Context?, intent: Intent?) {
                             val act = intent?.action
@@ -167,6 +168,55 @@ object AmapNavBridge : EventChannel.StreamHandler, MethodChannel.MethodCallHandl
                     (k as? String)?.let { it to v }
                 }?.toMap() ?: emptyMap()
                 sendBroadcasts(map)
+                result.success(null)
+            }
+            "setActions" -> {
+                val args = call.arguments
+                val list = (args as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+                Log.d("AmapNavBridge", "setActions: $list")
+                actions.clear()
+                actions.addAll(list.ifEmpty { listOf(
+                    "AUTONAVI_STANDARD_BROADCAST_SEND",
+                    "AUTONAVI_STANDARD_BROADCAST_RECV"
+                ) })
+                // 若动态接收器已激活，重注冊以应用新 Actions
+                dynamicReceiver?.let {
+                    runCatching { context?.unregisterReceiver(it) }
+                    dynamicReceiver = null
+                    // 重新开启监听将按新 actions 注册
+                    // 也可直接立即注册
+                    dynamicReceiver = object : BroadcastReceiver() {
+                        override fun onReceive(ctx: Context?, intent: Intent?) {
+                            val act = intent?.action
+                            if (act != null && actions.contains(act)) {
+                                Log.d("AmapNavBridge", "dynamic onReceive: $act extras=${intent.extras}")
+                                val data = HashMap<String, Any?>()
+                                fun s(key: String): String? = intent.getStringExtra(key)
+                                fun i(key: String): Int? = if (intent.hasExtra(key)) intent.getIntExtra(key, -1) else null
+                                data["type"] = i("KEY_TYPE")
+                                data["action"] = s("KEY_ACTION")
+                                data["roadName"] = s("EXTRA_ROAD_NAME")
+                                data["nextRoadName"] = s("EXTRA_NEXT_ROAD_NAME")
+                                data["remainDistance"] = i("EXTRA_REMAIN_DISTANCE")
+                                data["remainTime"] = i("EXTRA_REMAIN_TIME")
+                                data["curSpeed"] = i("EXTRA_CUR_SPEED")
+                                data["limitSpeed"] = i("EXTRA_LIMIT_SPEED")
+                                postEvent(data)
+                            }
+                        }
+                    }
+                    val f1 = IntentFilter().apply {
+                        priority = 1000
+                        actions.forEach { addAction(it) }
+                        addCategory("AUTONAVI_STANDARD_CATEGORY")
+                    }
+                    val f2 = IntentFilter().apply {
+                        priority = 1000
+                        actions.forEach { addAction(it) }
+                    }
+                    context?.registerReceiver(dynamicReceiver, f1)
+                    context?.registerReceiver(dynamicReceiver, f2)
+                }
                 result.success(null)
             }
             else -> result.notImplemented()

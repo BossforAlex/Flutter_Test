@@ -257,6 +257,26 @@ class _BluetoothPageState extends State<BluetoothPage> {
     return granted;
   }
 
+  Future<bool> _ensureBluetoothReady() async {
+    // 检查蓝牙适配器状态
+    final state = await FlutterBluePlus.adapterState.first;
+    if (state != BluetoothAdapterState.on) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先在系统设置中开启蓝牙'), backgroundColor: Colors.red),
+      );
+      return false;
+    }
+    // 检查定位服务（Android 12+ 扫描依赖定位服务开启）
+    final service = await Permission.locationWhenInUse.serviceStatus;
+    if (!service.isEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('定位服务未开启，无法扫描。请开启系统定位服务后重试'), backgroundColor: Colors.red),
+      );
+      return false;
+    }
+    return true;
+  }
+
   void _startScan() async {
     if (!await _ensurePermissions()) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -264,6 +284,8 @@ class _BluetoothPageState extends State<BluetoothPage> {
       );
       return;
     }
+    if (!await _ensureBluetoothReady()) return;
+
     _bluetoothService.startScan();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
