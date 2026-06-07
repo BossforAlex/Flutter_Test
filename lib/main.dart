@@ -554,6 +554,43 @@ class SettingsPage extends StatelessWidget {
       ),
       body: ListView(
         children: [
+          // 应用信息区域
+          const SizedBox(height: 16),
+          Center(
+            child: Column(
+              children: [
+                const Icon(Icons.navigation, size: 48, color: Colors.blue),
+                const SizedBox(height: 8),
+                const Text(
+                  'AmapAuto监听器',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '版本 3.2.0',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // 版本信息
+          _buildSectionHeader('版本信息'),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('应用版本'),
+            subtitle: const Text('3.2.0'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.android),
+            title: const Text('SDK 版本'),
+            subtitle: const Text('Flutter 3.0+ / Android API 21+'),
+          ),
+          const Divider(),
+
+          // 数据管理
+          _buildSectionHeader('数据管理'),
           ListTile(
             leading: const Icon(Icons.storage),
             title: const Text('缓存管理'),
@@ -564,27 +601,47 @@ class SettingsPage extends StatelessWidget {
               );
             },
           ),
+          const Divider(),
+
+          // 关于
+          _buildSectionHeader('关于'),
           ListTile(
-            leading: const Icon(Icons.notifications),
-            title: const Text('通知设置'),
-            subtitle: const Text('配置导航通知'),
+            leading: const Icon(Icons.description),
+            title: const Text('使用说明'),
+            subtitle: const Text('高德地图导航监听器使用指南'),
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('通知设置功能开发中')),
+                const SnackBar(content: Text('使用说明功能开发中')),
               );
             },
           ),
           ListTile(
-            leading: const Icon(Icons.help),
-            title: const Text('使用帮助'),
-            subtitle: const Text('查看应用使用说明'),
+            leading: const Icon(Icons.code),
+            title: const Text('开源许可'),
+            subtitle: const Text('查看开源组件许可信息'),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('使用帮助功能开发中')),
+              showLicensePage(
+                context: context,
+                applicationName: 'AmapAuto监听器',
+                applicationVersion: '3.2.0',
               );
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: Colors.blue,
+        ),
       ),
     );
   }

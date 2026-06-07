@@ -100,28 +100,20 @@ jobs:
       - name: 构建 APK
         run: flutter build apk --release
 
-      # 步骤11: 创建发布说明
+      # 步骤11: 创建发布说明（纯中文）
       - name: 创建发布说明
         id: create_release_notes
         run: |
           cat <<EOF > release_notes.md
-          ## AmapAuto Listener $NEW_VERSION
+          ## AmapAuto监听器 $NEW_VERSION
 
-          **中文:**
-          - 新版本: $NEW_VERSION.
+          **新版本: $NEW_VERSION**
+
+          ### 更新内容
           - UI 重构为滚动式布局，遵循 Material Design 设计规范。
           - 在数据展示区左侧添加了 ISO 8601 格式的时间戳。
           - 实现了数据去重、虚拟滚动和连续相同数据的视觉分隔符以优化性能和体验。
           - 修复了构建过程中的错误。
-
-          ---
-
-          **English:**
-          - New version: $NEW_VERSION.
-          - Refactored UI to a scrollable layout following Material Design guidelines.
-          - Added ISO 8601 formatted timestamps to the data display.
-          - Implemented data deduplication, virtual scrolling, and visual separators for identical consecutive data to improve performance and UX.
-          - Fixed build process errors.
           EOF
 
       # 步骤12: 发布到 GitHub Releases
