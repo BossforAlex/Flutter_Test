@@ -171,6 +171,7 @@ class _NavigationListenerPageState extends State<NavigationListenerPage>
 
   final BroadcastDataDeduplicator _dedup = BroadcastDataDeduplicator();
   late AnimationController _pulseController;
+  Map<String, dynamic>? _nativeStatus; // 原生注册状态诊断信息
 
   @override
   void initState() {
@@ -192,7 +193,24 @@ class _NavigationListenerPageState extends State<NavigationListenerPage>
       'AUTONAVI_STANDARD_BROADCAST_SEND',
       'AUTONAVI_STANDARD_BROADCAST_RECV',
     ]);
-    await _amapService.startListening();
+
+    // 启动监听，获取原生注册状态
+    final nativeStatus = await _amapService.startListening();
+    if (mounted) {
+      setState(() {
+        _nativeStatus = nativeStatus;
+        _isListening = _amapService.isListening;
+        if (nativeStatus != null) {
+          final reg = nativeStatus['registered'] == true;
+          _currentStatus = reg
+              ? '动态接收器已注册 · API ${nativeStatus['apiLevel'] ?? '?'}'
+              : '注册失败 · API ${nativeStatus['apiLevel'] ?? '?'}';
+        } else {
+          _currentStatus = '正在监听 AmapAuto 广播…';
+        }
+      });
+    }
+
     _subscription = _amapService.navigationStream.listen((data) {
       if (!mounted) return;
 
@@ -428,6 +446,10 @@ class _NavigationListenerPageState extends State<NavigationListenerPage>
                 Icons.visibility_outlined, '查看原始数据', '最近收到的原始广播',
                 () { Navigator.pop(context); _showRawData(); },
               ),
+              _buildActionTile(
+                Icons.info_outline, '查看诊断信息', '原生广播注册状态',
+                () { Navigator.pop(context); _showDiagnostics(); },
+              ),
             ],
           ),
         ),
@@ -518,6 +540,98 @@ class _NavigationListenerPageState extends State<NavigationListenerPage>
             onPressed: () => Navigator.pop(context),
             child: const Text('关闭', style: TextStyle(color: Color(0xFF00E5A0))),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _showDiagnostics() async {
+    // 刷新原生状态
+    final status = await _amapService.getStatus();
+    if (mounted) {
+      setState(() {
+        _nativeStatus = status;
+      });
+    }
+
+    final apiLevel = (_nativeStatus?['apiLevel'] ?? '?').toString();
+    final registered = _nativeStatus?['registered'] == true;
+    final pkg = _nativeStatus?['packageName'] ?? '?';
+    final actions = _nativeStatus?['actions'] as List<dynamic>? ?? [];
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF161B22),
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Color(0xFF00E5A0), size: 20),
+            SizedBox(width: 8),
+            Text('原生广播诊断', style: TextStyle(color: Color(0xFF00E5A0), fontSize: 16)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _diagRow('API Level', apiLevel),
+              _diagRow('接收器状态', registered ? '已注册' : '未注册',
+                  valueColor: registered ? const Color(0xFF00E5A0) : Colors.redAccent),
+              _diagRow('包名', pkg.toString()),
+              _diagRow('监听 Actions', actions.join(', ')),
+              _diagRow('监听中', '$_isListening'),
+              _diagRow('数据条数', '${_navigationData.length}'),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D1117),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF30363D)),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Android 14+ (API 34+) 提示',
+                        style: TextStyle(color: Color(0xFF00E5A0), fontWeight: FontWeight.bold, fontSize: 13)),
+                    SizedBox(height: 6),
+                    Text(
+                      '1. 必须用 RECEIVER_EXPORTED 注册动态接收器\n'
+                      '2. 静态 manifest 接收器可能无法接收自定义隐式广播\n'
+                      '3. 测试广播已使用显式 Intent (setPackage) 确保送达\n'
+                      '4. 如仍无数据，请检查 高德地图 是否正在导航并发送广播',
+                      style: TextStyle(color: Color(0xFF8B949E), fontSize: 12, height: 1.5),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('关闭', style: TextStyle(color: Color(0xFF00E5A0))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _diagRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Color(0xFF8B949E), fontSize: 13)),
+          Text(value,
+              style: TextStyle(
+                  color: valueColor ?? const Color(0xFFE6EDF3),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500)),
         ],
       ),
     );
