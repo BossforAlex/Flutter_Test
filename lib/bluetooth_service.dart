@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 /// 蓝牙服务 - 使用flutter_blue_plus实现真实蓝牙设备交互
@@ -16,7 +17,11 @@ class BluetoothService {
   StreamSubscription? _scanSubscription;
 
   BluetoothService() {
-    _setupBluetoothListeners();
+    try {
+      _setupBluetoothListeners();
+    } catch (_) {
+      // flutter_blue_plus 在桌面/测试环境可能不支持，忽略初始化错误
+    }
   }
 
   /// 设备流 - 实时更新发现的设备列表
@@ -30,28 +35,38 @@ class BluetoothService {
 
   /// 设置蓝牙监听器
   void _setupBluetoothListeners() {
-    // 监听蓝牙适配器状态
-    FlutterBluePlus.adapterState.listen((state) {
-      if (state == BluetoothAdapterState.on) {
-        // 蓝牙已开启
-        _scanStatusStreamController.add(_isScanning);
-      } else {
-        // 蓝牙已关闭，停止扫描
-        _stopScan();
-        _scanStatusStreamController.add(false);
-        // 蓝牙关闭时断开所有连接
-        if (_connectedDevice != null) {
-          _connectedDevice!.disconnect();
-          _connectedDevice = null;
-          _connectionStatusStreamController.add(null);
-        }
-      }
-    });
+    // flutter_blue_plus 仅支持 Android/iOS/macOS，桌面/测试环境跳过
+    if (!Platform.isAndroid && !Platform.isIOS && !Platform.isMacOS) {
+      return;
+    }
 
-    // 监听设备连接状态变化 - 通过适配器状态变化来监听
-    FlutterBluePlus.adapterState.listen((state) {
-      _updateConnectionStatus();
-    });
+    try {
+      final adapterState = FlutterBluePlus.adapterState;
+      // 监听蓝牙适配器状态
+      adapterState.listen((state) {
+        if (state == BluetoothAdapterState.on) {
+          // 蓝牙已开启
+          _scanStatusStreamController.add(_isScanning);
+        } else {
+          // 蓝牙已关闭，停止扫描
+          _stopScan();
+          _scanStatusStreamController.add(false);
+          // 蓝牙关闭时断开所有连接
+          if (_connectedDevice != null) {
+            _connectedDevice!.disconnect();
+            _connectedDevice = null;
+            _connectionStatusStreamController.add(null);
+          }
+        }
+      });
+
+      // 监听设备连接状态变化
+      adapterState.listen((state) {
+        _updateConnectionStatus();
+      });
+    } catch (_) {
+      // 平台不支持时忽略
+    }
   }
 
   /// 开始扫描蓝牙设备

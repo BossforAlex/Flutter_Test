@@ -577,15 +577,15 @@ class SettingsPage extends StatelessWidget {
 
           // 版本信息
           _buildSectionHeader('版本信息'),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('应用版本'),
-            subtitle: const Text('3.2.0'),
+          const ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text('应用版本'),
+            subtitle: Text('3.2.0'),
           ),
-          ListTile(
-            leading: const Icon(Icons.android),
-            title: const Text('SDK 版本'),
-            subtitle: const Text('Flutter 3.0+ / Android API 21+'),
+          const ListTile(
+            leading: Icon(Icons.android),
+            title: Text('SDK 版本'),
+            subtitle: Text('Flutter 3.0+ / Android API 21+'),
           ),
           const Divider(),
 

@@ -1,13 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
 import 'package:amapauto_listener/main.dart';
 
 void main() {
   testWidgets('App loads with correct title and navigation tabs', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
 
-    // Verify that the app loads with the correct title
-    expect(find.text('高德地图导航监听器'), findsOneWidget);
+    // Verify that the app loads with the correct AppBar title
+    expect(find.text('高德地图导航监听'), findsOneWidget);
 
     // Verify that navigation tabs are present
     expect(find.text('导航监听'), findsOneWidget);
