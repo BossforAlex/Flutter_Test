@@ -8,162 +8,119 @@ import android.util.Log
 /**
  * 高德地图广播测试助手类
  * 用于模拟高德地图广播数据，便于调试和测试
+ * 遵循 AmapAuto 标准广播协议字段命名
  */
 class AmapAutoTestHelper(private val context: Context) {
     companion object {
         private const val TAG = "AmapAutoTestHelper"
-        
+
+        const val ACTION_SEND = "AUTONAVI_STANDARD_BROADCAST_SEND"
+        const val ACTION_RECV = "AUTONAVI_STANDARD_BROADCAST_RECV"
+
         // 测试数据常量
         const val TEST_LATITUDE = 39.9042
         const val TEST_LONGITUDE = 116.4074
-        const val TEST_SPEED = 60.0
-        const val TEST_BEARING = 90.0
-        const val TEST_ACCURACY = 10.0
-        const val TEST_DISTANCE = 1500
-        const val TEST_TIME = 300
-        const val TEST_NEXT_TURN = "右转"
-        const val TEST_NEXT_ROAD = "中山路"
+        const val TEST_SPEED = 60
+        const val TEST_LIMIT = 80
+        const val TEST_BEARING = 90
+        const val TEST_REMAIN_DIS = 1500
+        const val TEST_REMAIN_TIME = 300
+        const val TEST_CUR_ROAD = "长安街"
+        const val TEST_NEXT_ROAD = "建国路"
+        const val TEST_ICON = 2 // 左转
     }
 
     /**
-     * 发送模拟的导航数据广播
+     * 发送模拟的导航引导信息广播 (KEY_TYPE = 10001)
      */
-    fun sendTestNavigationData() {
+    fun sendTestNavigationGuidance() {
         try {
-            val intent = Intent(AmapAutoReceiver.AMAPAUTO_NAVI_DATA_ACTION)
+            val intent = Intent(ACTION_SEND)
+            intent.addCategory("AUTONAVI_STANDARD_CATEGORY")
+            intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
+
             val bundle = Bundle().apply {
-                putString("action", "navigation")
-                putLong("timestamp", System.currentTimeMillis())
-                putInt("route_distance", TEST_DISTANCE)
-                putInt("route_time", TEST_TIME)
-                putDouble("current_speed", TEST_SPEED)
-                putString("next_turn", TEST_NEXT_TURN)
-                putString("next_road", TEST_NEXT_ROAD)
-                putDouble("latitude", TEST_LATITUDE)
-                putDouble("longitude", TEST_LONGITUDE)
-                putDouble("accuracy", TEST_ACCURACY)
-                putDouble("bearing", TEST_BEARING)
+                putInt("KEY_TYPE", 10001)
+                putString("KEY_ACTION", "turn-left")
+                putString("CUR_ROAD_NAME", TEST_CUR_ROAD)
+                putString("NEXT_ROAD_NAME", TEST_NEXT_ROAD)
+                putInt("ROUTE_REMAIN_DIS", TEST_REMAIN_DIS)
+                putInt("ROUTE_REMAIN_TIME", TEST_REMAIN_TIME)
+                putInt("CUR_SPEED", TEST_SPEED)
+                putInt("LIMITED_SPEED", TEST_LIMIT)
+                putInt("ICON", TEST_ICON)
+                putDouble("CAR_LATITUDE", TEST_LATITUDE)
+                putDouble("CAR_LONGITUDE", TEST_LONGITUDE)
+                putInt("CAR_DIRECTION", TEST_BEARING)
+                putInt("SEG_REMAIN_DIS", 500)
+                putInt("SEG_REMAIN_TIME", 100)
+                putInt("ROAD_TYPE", 2) // 国道
+                putInt("TRAFFIC_LIGHT_NUM", 3)
             }
             intent.putExtras(bundle)
-            
             context.sendBroadcast(intent)
-            Log.d(TAG, "测试导航数据广播已发送")
+            Log.d(TAG, "测试导航引导信息广播已发送 (KEY_TYPE=10001)")
         } catch (e: Exception) {
             Log.e(TAG, "发送测试导航数据失败: ${e.message}", e)
         }
     }
 
     /**
-     * 发送模拟的位置数据广播
+     * 发送模拟的导航状态广播 (KEY_TYPE = 10019)
      */
-    fun sendTestLocationData() {
+    fun sendTestNavigationState(state: Int = 10) {
         try {
-            val intent = Intent(AmapAutoReceiver.AMAPAUTO_LOCATION_ACTION)
+            val intent = Intent(ACTION_SEND)
+            intent.addCategory("AUTONAVI_STANDARD_CATEGORY")
+            intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
+
             val bundle = Bundle().apply {
-                putString("action", "location")
-                putLong("timestamp", System.currentTimeMillis())
-                putDouble("latitude", TEST_LATITUDE)
-                putDouble("longitude", TEST_LONGITUDE)
-                putDouble("speed", TEST_SPEED)
-                putDouble("bearing", TEST_BEARING)
-                putDouble("accuracy", TEST_ACCURACY)
-                putString("provider", "gps")
+                putInt("KEY_TYPE", 10019)
+                putInt("EXTRA_STATE", state)
             }
             intent.putExtras(bundle)
-            
             context.sendBroadcast(intent)
-            Log.d(TAG, "测试位置数据广播已发送")
+            Log.d(TAG, "测试导航状态广播已发送 (EXTRA_STATE=$state)")
         } catch (e: Exception) {
-            Log.e(TAG, "发送测试位置数据失败: ${e.message}", e)
+            Log.e(TAG, "发送导航状态失败: ${e.message}", e)
         }
     }
 
     /**
-     * 发送模拟的标准广播
+     * 发送模拟的摄像头信息广播
      */
-    fun sendTestStandardBroadcast() {
+    fun sendTestCameraInfo(cameraType: Int = 1, cameraDist: Int = 300, cameraSpeed: Int = 60) {
         try {
-            val intent = Intent(AmapAutoReceiver.AUTONAVI_STANDARD_BROADCAST)
+            val intent = Intent(ACTION_SEND)
+            intent.addCategory("AUTONAVI_STANDARD_CATEGORY")
+            intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
+
             val bundle = Bundle().apply {
-                putString("action", "standard_broadcast")
-                putLong("timestamp", System.currentTimeMillis())
-                putString("version", "1.0.0")
-                putString("type", "navigation")
-                putString("status", "active")
-                putInt("progress", 50)
-                putString("destination", "天安门广场")
+                putInt("KEY_TYPE", 10001)
+                putInt("CAMERA_DIST", cameraDist)
+                putInt("CAMERA_TYPE", cameraType)
+                putInt("CAMERA_SPEED", cameraSpeed)
             }
             intent.putExtras(bundle)
-            
             context.sendBroadcast(intent)
-            Log.d(TAG, "测试标准广播已发送")
+            Log.d(TAG, "测试摄像头信息广播已发送")
         } catch (e: Exception) {
-            Log.e(TAG, "发送测试标准广播失败: ${e.message}", e)
+            Log.e(TAG, "发送摄像头信息失败: ${e.message}", e)
         }
     }
 
     /**
-     * 发送自定义测试数据
-     */
-    fun sendCustomTestData(action: String, data: Map<String, Any>) {
-        try {
-            val intent = Intent(action)
-            val bundle = Bundle()
-            
-            data.forEach { (key, value) ->
-                when (value) {
-                    is String -> bundle.putString(key, value)
-                    is Int -> bundle.putInt(key, value)
-                    is Long -> bundle.putLong(key, value)
-                    is Double -> bundle.putDouble(key, value)
-                    is Float -> bundle.putFloat(key, value)
-                    is Boolean -> bundle.putBoolean(key, value)
-                    else -> bundle.putString(key, value.toString())
-                }
-            }
-            
-            intent.putExtras(bundle)
-            context.sendBroadcast(intent)
-            Log.d(TAG, "自定义测试数据已发送: action=$action, data=$data")
-        } catch (e: Exception) {
-            Log.e(TAG, "发送自定义测试数据失败: ${e.message}", e)
-        }
-    }
-
-    /**
-     * 发送错误数据测试异常处理
-     */
-    fun sendErrorTestData() {
-        try {
-            val intent = Intent("INVALID_ACTION_FOR_TEST")
-            // 不添加任何数据，测试空数据处理
-            
-            context.sendBroadcast(intent)
-            Log.d(TAG, "错误测试数据已发送")
-        } catch (e: Exception) {
-            Log.e(TAG, "发送错误测试数据失败: ${e.message}", e)
-        }
-    }
-
-    /**
-     * 批量发送测试数据
+     * 批量发送多种测试数据
      */
     fun sendBatchTestData() {
         Log.d(TAG, "开始批量发送测试数据")
-        
-        // 发送位置数据
-        sendTestLocationData()
-        
-        // 延迟发送导航数据
+        sendTestNavigationState(10) // 路径规划完成
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            sendTestNavigationData()
+            sendTestNavigationGuidance()
+        }, 500)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            sendTestCameraInfo()
         }, 1000)
-        
-        // 延迟发送标准广播
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            sendTestStandardBroadcast()
-        }, 2000)
-        
         Log.d(TAG, "批量测试数据发送完成")
     }
 }

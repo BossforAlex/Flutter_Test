@@ -1,135 +1,118 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 
-/// 高德地图导航监听服务
+/// 高德地图导航监听服务（统一使用原生通道：amap_nav / amap_nav_stream）
 class AmapListenerService {
-  static const platform = MethodChannel('com.example.amapauto_listener/navigation');
-  
+  static const MethodChannel _mc = MethodChannel('amap_nav');
+  static const EventChannel _ec = EventChannel('amap_nav_stream');
+
   static final AmapListenerService _instance = AmapListenerService._internal();
   factory AmapListenerService() => _instance;
   AmapListenerService._internal();
-  
-  final StreamController<Map<String, dynamic>> _navigationStreamController = 
+
+  final StreamController<Map<String, dynamic>> _controller =
       StreamController<Map<String, dynamic>>.broadcast();
-  
-  Stream<Map<String, dynamic>> get navigationStream => _navigationStreamController.stream;
-  
+
+  StreamSubscription? _ecSub;
   bool _isListening = false;
-  
-  /// 开始监听高德地图导航数据
-  Future<void> startListening() async {
-    if (_isListening) return;
-    
-    try {
-      // 设置方法调用处理器
-      platform.setMethodCallHandler(_handleMethodCall);
-      
-      // 启动监听服务
-      await platform.invokeMethod('startNavigationListener');
-      
-      _isListening = true;
-      _navigationStreamController.add({
-        'type': 'status',
-        'message': '开始监听高德地图导航数据',
-        'timestamp': DateTime.now().millisecondsSinceEpoch
-      });
-      
-    } catch (e) {
-      _navigationStreamController.add({
+
+  Stream<Map<String, dynamic>> get navigationStream => _controller.stream;
+  bool get isListening => _isListening;
+
+  /// 启动监听，返回原生注册状态
+  Future<Map<String, dynamic>?> startListening() async {
+    if (_isListening) return null;
+
+    // 先取消之前的订阅
+    await _ecSub?.cancel();
+    _ecSub = null;
+
+    // 重新订阅原生事件流
+    _ecSub = _ec.receiveBroadcastStream().listen((event) {
+      if (event is Map) {
+        _controller.add(Map<String, dynamic>.from(event));
+      }
+    }, onError: (e) {
+      _controller.add({
         'type': 'error',
-        'message': '启动监听失败: $e',
-        'timestamp': DateTime.now().millisecondsSinceEpoch
+        'message': '$e',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    });
+
+    // 启动原生监听
+    bool nativeOk = false;
+    String? nativeError;
+    try {
+      final result = await _mc.invokeMethod('startNavigationListener');
+      nativeOk = result == true || result == null;
+    } catch (e) {
+      nativeError = e.toString();
+    }
+
+    _isListening = nativeOk;
+    if (nativeOk) {
+      _controller.add({
+        'type': 'status',
+        'message': '动态接收器注册成功，等待高德地图广播',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    } else {
+      _controller.add({
+        'type': 'error',
+        'message': '注册失败: ${nativeError ?? "未知错误"}',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
     }
+
+    // 查询原生状态用于诊断
+    Map<String, dynamic>? status;
+    try {
+      final s = await _mc.invokeMethod('getStatus');
+      if (s is Map) status = Map<String, dynamic>.from(s);
+    } catch (_) {}
+
+    return status;
   }
-  
-  /// 停止监听
+
   Future<void> stopListening() async {
     if (!_isListening) return;
-    
-    try {
-      await platform.invokeMethod('stopNavigationListener');
-      _isListening = false;
-      
-      _navigationStreamController.add({
-        'type': 'status',
-        'message': '停止监听高德地图导航数据',
-        'timestamp': DateTime.now().millisecondsSinceEpoch
-      });
-      
-    } catch (e) {
-      _navigationStreamController.add({
-        'type': 'error',
-        'message': '停止监听失败: $e',
-        'timestamp': DateTime.now().millisecondsSinceEpoch
-      });
-    }
-  }
-  
-  /// 处理方法调用
-  Future<dynamic> _handleMethodCall(MethodCall call) async {
-    switch (call.method) {
-      case 'onNavigationData':
-        final data = Map<String, dynamic>.from(call.arguments);
-        _navigationStreamController.add(data);
-        break;
-        
-      case 'onLocationUpdate':
-        final locationData = Map<String, dynamic>.from(call.arguments);
-        _navigationStreamController.add({
-          'type': 'location',
-          ...locationData,
-          'timestamp': DateTime.now().millisecondsSinceEpoch
-        });
-        break;
-        
-      case 'onRouteUpdate':
-        final routeData = Map<String, dynamic>.from(call.arguments);
-        _navigationStreamController.add({
-          'type': 'route',
-          ...routeData,
-          'timestamp': DateTime.now().millisecondsSinceEpoch
-        });
-        break;
-        
-      default:
-        break;
-    }
-  }
-  
-  /// 模拟高德地图导航数据（用于测试）
-  void simulateAmapData() {
-    if (!_isListening) return;
-    
-    final testData = {
-      'type': 'navigation',
-      'action': 'AMAP_AUTO_NAVI',
+
+    await _mc.invokeMethod('stopNavigationListener');
+    await _ecSub?.cancel();
+    _ecSub = null;
+
+    _isListening = false;
+    _controller.add({
+      'type': 'status',
+      'message': '停止监听高德地图导航数据',
       'timestamp': DateTime.now().millisecondsSinceEpoch,
-      'route_distance': 15200.5,
-      'route_time': 1860,
-      'current_speed': 45.6,
-      'next_turn': '右转',
-      'next_road': '中山路',
-      'latitude': 39.9042,
-      'longitude': 116.4074,
-      'progress': 65,
-      'destination': '天安门广场',
-      'current_road': '长安街',
-      'remaining_distance': 5320.8,
-      'remaining_time': 720,
-      'traffic_light_count': 3,
-      'service_area_distance': 15000,
-      'is_navigating': true,
-    };
-    
-    _navigationStreamController.add(testData);
+    });
   }
-  
-  /// 获取监听状态
-  bool get isListening => _isListening;
-  
-  /// 清理资源
+
+  /// 查询原生状态（用于诊断）
+  Future<Map<String, dynamic>?> getStatus() async {
+    try {
+      final result = await _mc.invokeMethod('getStatus');
+      if (result is Map) return Map<String, dynamic>.from(result);
+    } catch (_) {}
+    return null;
+  }
+
+  /// 运行时配置原生监听的 Action 列表
+  Future<void> setActions(List<String> actions) async {
+    await _mc.invokeMethod('setActions', actions);
+  }
+
+  /// 发送内置测试广播（直接 post + 广播双通道）
+  Future<void> sendTestBroadcast() => _mc.invokeMethod('sendTestBroadcast');
+
+  /// 发送自定义广播
+  Future<void> sendBroadcast(Map<String, dynamic> data) =>
+      _mc.invokeMethod('sendBroadcast', data);
+
   void dispose() {
-    _navigationStreamController.close();
+    _ecSub?.cancel();
+    _controller.close();
   }
 }

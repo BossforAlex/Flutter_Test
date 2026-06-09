@@ -1,22 +1,72 @@
-buildscript {
-    ext.kotlin_version = '1.9.22'
-    repositories {
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://maven.aliyun.com/repository/central' }
-        maven { url 'https://maven.aliyun.com/repository/public' }
-        maven { url 'https://storage.googleapis.com/download.flutter.io' }
-        google()
-        mavenCentral()
-    }
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
 
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.2'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+/**
+ * For AGP 8+, we use settings.gradle plugins DSL to manage AGP/Kotlin versions.
+ * No need to declare buildscript classpath here.
+ * We only keep repositories and utility tasks.
+ */
+
+/**
+ * Early-phase namespace injection for AGP 8+:
+ * ensure third-party Android library modules (e.g. amap_flutter_location) have android.namespace.
+ */
+gradle.beforeProject { Project p ->
+    try {
+        // 已知 AMap 模块的命名空间映射（作为兜底）
+        def knownNs = [
+            'amap_flutter_location': 'com.amap.flutter.location',
+            'amap_flutter_map'     : 'com.amap.flutter.map',
+            'amap_flutter_base'    : 'com.amap.flutter.base',
+            'amap_flutter_search'  : 'com.amap.flutter.search',
+            'amap_flutter_common'  : 'com.amap.flutter.common',
+            'amap_flutter_navi'    : 'com.amap.flutter.navi',
+        ]
+        p.plugins.withId('com.android.library') {
+            def androidExt = p.extensions.findByName('android')
+            if (androidExt != null) {
+                boolean hasNs = false
+                try { hasNs = androidExt.hasProperty('namespace') && androidExt.namespace != null } catch (Exception _) {}
+                if (!hasNs) {
+                    // 优先从模块 Manifest 读取 package
+                    def manifestFile = new File(p.projectDir, "src/main/AndroidManifest.xml")
+                    String pkg = null
+                    if (manifestFile.exists()) {
+                        try {
+                            def parser = new groovy.xml.XmlSlurper(false, false)
+                            def xml = parser.parse(manifestFile)
+                            pkg = xml.@package?.toString()
+                        } catch (Exception __) {
+                            // ignore parse errors
+                        }
+                    }
+                    String ns = pkg != null && pkg.trim()
+                            ? pkg.trim()
+                            : (knownNs.containsKey(p.name) ? knownNs[p.name] : null)
+                    if (ns != null) {
+                        androidExt.namespace = ns
+                        println("Applied namespace '${ns}' to :${p.name} (plugins.withId/beforeProject)")
+                    }
+                }
+            }
+        }
+    } catch (Exception ignored) {
+        // no-op
     }
+}
+
+ext {
+    // Provide legacy flutter.* values for plugins expecting them
+    flutter = [
+        minSdkVersion     : 21,
+        targetSdkVersion  : 34,
+        compileSdkVersion : 34,
+        ndkVersion        : "25.1.8937393"
+    ]
 }
 
 allprojects {
     repositories {
+        // Mirrors + official repos
         maven { url 'https://maven.aliyun.com/repository/google' }
         maven { url 'https://maven.aliyun.com/repository/central' }
         maven { url 'https://maven.aliyun.com/repository/public' }
@@ -29,8 +79,11 @@ allprojects {
 rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
+    // Make sure :app evaluated first for some plugins that expect it
     project.evaluationDependsOn(':app')
 }
+
+
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir

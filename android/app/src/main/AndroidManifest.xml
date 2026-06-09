@@ -2,10 +2,23 @@
     <!-- 接收高德地图导航广播的权限 -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.BROADCAST_STICKY"/>
+
+    <!-- 位置与网络 -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!-- 蓝牙权限（Android 12+）与旧版兼容 -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
+
+    <!-- 蓝牙特性声明：不强制要求，避免设备被过滤 -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false"/>
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false"/>
 
     <application
         android:label="AmapAuto监听器"
@@ -38,6 +51,22 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- 高优先级的高德标准广播接收器（支持带/不带 Category，两种Action） -->
+        <receiver
+            android:name=".AmapBroadcastReceiver"
+            android:exported="true">
+            <!-- 过滤器1：带 Category -->
+            <intent-filter android:priority="1000">
+                <action android:name="AUTONAVI_STANDARD_BROADCAST_SEND" />
+                <action android:name="AUTONAVI_STANDARD_BROADCAST_RECV" />
+                <category android:name="AUTONAVI_STANDARD_CATEGORY" />
+            </intent-filter>
+            <!-- 过滤器2：仅 Action，不带 Category，提升兼容性 -->
+            <intent-filter android:priority="1000">
+                <action android:name="AUTONAVI_STANDARD_BROADCAST_SEND" />
+                <action android:name="AUTONAVI_STANDARD_BROADCAST_RECV" />
+            </intent-filter>
+        </receiver>
     </application>
 
     <!-- Required to query activities that can process text, see:
